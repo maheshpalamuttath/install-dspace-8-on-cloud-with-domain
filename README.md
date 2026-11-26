@@ -996,13 +996,6 @@ Check the internal REST API:
 ```bash
 curl -I http://127.0.0.1:8080/server
 ```
-
----
-
-## Contributors
-
-Express my sincere thanks to the contributors; Matúš Formanek (KMKD FHV University, Slovakia), Jeremiah Kellogg (Library Faculty, Systems, Eastern Oregon University), Anoop P.A. (Technical Assistant, Kerala Institute Of Local Administration), and Mahesh Palamuttath (Librarian, East Campus, Sacred Heart College, Thevara, Ernakulam).
-
 ---
 
 ## References
