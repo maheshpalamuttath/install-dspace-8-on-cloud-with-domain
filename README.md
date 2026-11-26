@@ -764,6 +764,239 @@ sudo rm -rf /build
 
 Restart the computer and check the Solr, Tomcat, and DSpace works.
 
+
+## Apache2 Reverse Proxy with SSL
+
+### 3. Install Apache2
+
+```bash
+sudo apt update
+sudo apt install apache2 -y
+```
+
+Enable the required Apache modules:
+
+```bash
+sudo a2enmod proxy
+sudo a2enmod proxy_http
+sudo a2enmod headers
+sudo a2enmod ssl
+sudo a2enmod rewrite
+```
+
+Restart Apache:
+
+```bash
+sudo systemctl restart apache2
+```
+
+### 4. Configure HTTP VirtualHost
+
+Create the Apache configuration file:
+
+```bash
+sudo nano /etc/apache2/sites-available/dspace.opensio.co.in.conf
+```
+
+Add:
+
+```apache
+<VirtualHost *:80>
+
+    ServerName dspace.opensio.co.in
+
+    RewriteEngine On
+    RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [R=301,L]
+
+    ErrorLog ${APACHE_LOG_DIR}/dspace_error.log
+    CustomLog ${APACHE_LOG_DIR}/dspace_access.log combined
+
+</VirtualHost>
+```
+
+Enable the site:
+
+```bash
+sudo a2ensite dspace.opensio.co.in.conf
+```
+
+### 5. Configure SSL Certificate
+
+Install Certbot:
+
+```bash
+sudo apt install certbot python3-certbot-apache -y
+```
+
+Request an SSL certificate:
+
+```bash
+sudo certbot --apache -d dspace.opensio.co.in
+```
+
+Certbot will obtain the certificate and configure an HTTPS VirtualHost.
+
+Verify certificate renewal:
+
+```bash
+sudo certbot renew --dry-run
+```
+
+### 6. Configure Apache2 Reverse Proxy
+
+Open the SSL VirtualHost created by Certbot:
+
+```bash
+sudo nano /etc/apache2/sites-available/dspace.opensio.co.in-le-ssl.conf
+```
+
+Inside the existing `<VirtualHost *:443>` block, add the following directives. Preserve the existing SSL certificate and Certbot configuration.
+
+```apache
+# Preserve the original hostname
+ProxyPreserveHost On
+
+# Forward HTTPS information to the backend
+RequestHeader set X-Forwarded-Proto "https"
+RequestHeader set X-Forwarded-Host "dspace.opensio.co.in"
+
+# DSpace REST API - Tomcat
+ProxyPass /server http://127.0.0.1:8080/server
+ProxyPassReverse /server http://127.0.0.1:8080/server
+
+# DSpace Angular UI - PM2
+ProxyPass / http://[::1]:4000/
+ProxyPassReverse / http://[::1]:4000/
+```
+
+> **Important:** Keep the `/server` proxy directives before the `/` directives. Otherwise, REST API requests may be forwarded to the Angular frontend.
+
+The IPv6 loopback address `[::1]` is used because the PM2 frontend listener is bound to IPv6 loopback rather than IPv4 `127.0.0.1`.
+
+### 7. Validate and Reload Apache
+
+Check the configuration:
+
+```bash
+sudo apachectl configtest
+```
+
+Expected:
+
+```
+Syntax OK
+```
+
+Reload Apache:
+
+```bash
+sudo systemctl reload apache2
+```
+
+Check service status:
+
+```bash
+sudo systemctl status apache2 --no-pager
+```
+
+### 8. Configure DSpace Backend URLs
+
+Open the DSpace backend configuration:
+
+```bash
+sudo nano /home/dspace/config/local.cfg
+```
+
+Ensure the public URLs are configured as follows:
+
+```properties
+dspace.server.url = https://dspace.opensio.co.in/server
+dspace.ui.url = https://dspace.opensio.co.in
+```
+
+These URLs tell DSpace which public addresses to use for its REST API and frontend.
+
+Restart the backend if you changed its configuration. Use the actual Tomcat service name on your installation:
+
+```bash
+sudo systemctl restart tomcat
+```
+
+If the service is named differently, identify it with:
+
+```bash
+systemctl list-units --type=service | grep -i tomcat
+```
+
+### 9. Configure Angular UI
+
+Open the production configuration file:
+
+```bash
+cd /home/dspace/dspace-angular-dspace-8.0
+nano config/config.prod.yml
+```
+
+Check that the UI and REST API settings point to the appropriate addresses:
+
+```yaml
+ui:
+  ssl: false
+  host: localhost
+  port: 4000
+  nameSpace: /
+
+rest:
+  ssl: true
+  host: dspace.opensio.co.in
+  port: 443
+  nameSpace: /server
+```
+
+The UI uses HTTP internally because Apache handles public HTTPS. The REST API uses the public HTTPS domain.
+
+> **Note:** If you modify the Angular production configuration, rebuild the UI and restart the PM2 application according to your existing DSpace deployment procedure.
+
+### 10. Verify the Configuration
+
+Check the frontend:
+
+```bash
+curl -I https://dspace.opensio.co.in/
+```
+
+Expected:
+
+```
+HTTP/1.1 200 OK
+```
+
+Check the REST API:
+
+```bash
+curl -I https://dspace.opensio.co.in/server
+```
+
+A redirect to `/server/` is normal.
+
+Check the REST API response:
+
+```bash
+curl -s https://dspace.opensio.co.in/server/api | head -c 1500
+```
+
+Check the internal Angular UI:
+
+```bash
+curl -I 'http://[::1]:4000/'
+```
+
+Check the internal REST API:
+
+```bash
+curl -I http://127.0.0.1:8080/server
+```
+
 ---
 
 ## Contributors
