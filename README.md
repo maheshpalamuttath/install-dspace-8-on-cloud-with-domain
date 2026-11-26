@@ -1,5 +1,18 @@
 # Install DSpace 8 on Ubuntu 24.04 LTS
 
+## Introduction
+
+[DSpace](https://dspace.lyrasis.org/) is an open-source repository software used to build digital libraries and institutional repositories, where organizations can store, manage, preserve and share digital content such as theses, research papers, datasets and other documents.
+
+This guide is a step-by-step walkthrough for installing DSpace 8 on Ubuntu 24.04 LTS. It covers:
+
+- Preparing the system and installing the prerequisites (OpenJDK 17, Maven, Ant, PostgreSQL, Solr and Tomcat 10)
+- Building and installing the DSpace backend (REST API)
+- Installing and running the Angular-based front end (user interface) with Node.js, Yarn and PM2
+- Publishing the site on a domain with Apache2 as a reverse proxy and a free SSL certificate from Let's Encrypt (Certbot)
+
+Follow the sections in order, running the commands one by one. Basic familiarity with the Linux terminal is helpful. Building the front end needs a good amount of memory, so a machine with at least 5-6 GB of RAM is recommended.
+
 ## Table of Contents
 
 1. [Prepare the system for DSpace installation](#prepare-the-system-for-dspace-installation)
